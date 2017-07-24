@@ -1,0 +1,34 @@
+{
+  "$schema": "https://statics.teams.microsoft.com/sdk/v1.0/manifest/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.0",
+  "version": "1.0.0",
+  "id": "146423ec-f0b8-4733-aa91-a6f1fd9c603e",
+  "packageName": "com.microsoft.ohmybot",
+  "developer": {
+    "name": "Ryan Delaney",
+    "websiteUrl": "https://ohmybot.azurewebsites.net",
+    "privacyUrl": "https://ohmybot.azurewebsites.net/privacy",
+    "termsOfUseUrl": "https://ohmybot.azurewebsites.net/tos"
+  },
+  "description": {
+    "short": "Short description of your app",
+    "full": "Full description of your app"
+  },
+  "name": {
+    "short": "OhMyBot",
+    "full": "OhMyBot"
+  },
+  "accentColor": "#adadad",
+  "icons": {
+    "outline": "",
+    "color": ""
+  },
+  "bots": [
+    {
+      "botId": "%MICROSOFT-APP-ID-REGISTERED-WITH-BOT-FRAMEWORK%",
+      "needsChannelSelector": "true",
+      "isNotificationOnly": "false",
+      "scopes": ["team", "personal"]
+    }
+  ]
+}

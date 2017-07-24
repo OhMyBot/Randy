@@ -20,15 +20,14 @@
   },
   "accentColor": "#adadad",
   "icons": {
-    "outline": "",
-    "color": ""
+    "outline": "assets/logo5_20x20.png",
+    "color": "assets/logo5_96x96.png"
   },
   "bots": [
     {
-      "botId": "%MICROSOFT-APP-ID-REGISTERED-WITH-BOT-FRAMEWORK%",
-      "needsChannelSelector": "true",
-      "isNotificationOnly": "false",
-      "scopes": ["team", "personal"]
+      "botId": "146423ec-f0b8-4733-aa91-a6f1fd9c603e",
+      "scopes": ["team", "personal"],
+      "needsChannelSelector": true
     }
   ]
 }

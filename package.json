@@ -20,6 +20,7 @@
   "dependencies": {
     "botbuilder": "^3.8.4",
     "dotenv": "^4.0.0",
+    "mstranslator": "^3.0.0",
     "restify": "^5.0.1"
   }
 }

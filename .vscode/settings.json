@@ -1,0 +1,5 @@
+{
+  "prettier.cssEnable": ["css", "less", "scss"],
+  "prettier.semi": false,
+  "prettier.singleQuote": true
+}

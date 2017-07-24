@@ -1,0 +1,25 @@
+{
+  "name": "Randy",
+  "version": "1.0.0",
+  "description": "Chat interface for OhMyBot",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OhMyBot/Randy.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/OhMyBot/Randy/issues"
+  },
+  "homepage": "https://github.com/OhMyBot/Randy#readme",
+  "dependencies": {
+    "botbuilder": "^3.8.4",
+    "dotenv": "^4.0.0",
+    "restify": "^5.0.1"
+  }
+}

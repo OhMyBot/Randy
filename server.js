@@ -49,8 +49,8 @@ const COMMANDS = {
 }
 
 const COMMAND_PATTERNS = {
-  RANT: /\\\\Rant\s*/g,
-  RETRO: /\\\\RETOR\s*/g
+  RANT: /.*\\\\Rant\s*/g,
+  RETRO: /.*\\\\Retro\s*/g
 }
 
 /**
@@ -60,9 +60,9 @@ const COMMAND_PATTERNS = {
  * @return {boolean | string[]}
  */
 function handleMessage(text) {
-  const commandType = text.startsWith('\\\\Rant')
+  const commandType = text.match(COMMAND_PATTERNS.RANT)
     ? COMMANDS.RANT
-    : text.startsWith('\\\\Retro') ? COMMANDS.RETRO : null
+    : text.match(COMMAND_PATTERNS.RETRO) ? COMMANDS.RETRO : null
 
   if (commandType === COMMANDS.RANT)
     return handleRant(text.replace(COMMAND_PATTERNS.RANT, ''))

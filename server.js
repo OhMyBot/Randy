@@ -150,7 +150,9 @@ function getArgs(text) {
  * @return {string}
  */
 function handleHello(text, args) {
-  return Promise.resolve('Hello! You can provide feedback with hashtags or see feedback with bangs (#worklifebalance, !worklifebalance)')
+  return Promise.resolve('Hello! You can provide feedback with hashtags ' +
+    'or see feedback with bangs (#worklifebalance, !worklifebalance). To see a list of feedback categories ' +
+    'already in use, type \'#?\'.')
 }
 
 /**

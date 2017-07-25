@@ -33,22 +33,22 @@ const bot = new builder.UniversalBot(connector, session => {
 
   session.sendTyping()
 
-  result.then(response => {
-    if (response === true) {
+  result.then(responses => {
+    if (responses === true) {
       return session.send('Thanks bud!')
     }
 
-    if (typeof response === 'string') {
-      return session.send(response)
+    if (typeof responses === 'string') {
+      return session.send(responses)
     }
 
-    if (Array.isArray(response)) {
-      const message =
-        response.length === 0
-          ? 'Nothing to report!'
-          : `Here's what some people said...\n${response
-              .map(r => `* ${r}`)
-              .join('\n')}`
+    if (typeof responses === 'object') {
+      const keys = Object.keys(responses)
+      const message = keys.length === 0
+        ? 'Nothing to report!'
+        : keys
+          .map(hashtag => formatResponse(responses[hashtag], hashtag))
+          .join('\n')
 
       return session.send(message)
     }
@@ -57,17 +57,24 @@ const bot = new builder.UniversalBot(connector, session => {
   })
 })
 
+const formatResponse = (thread, hashtag) => `#${hashtag}...\n${thread
+  .map(r => `* ${r}`)
+  .join('\n')}`
+
 const COMMANDS = {
   HELLO: 'HELLO',
-  RANT: 'RANT',
-  RETRO: 'RETRO'
+  GIVE: 'GIVE',
+  GET: 'GET'
 }
 
 const COMMAND_PATTERNS = {
-  HELLO: /.*#Hello\s*/i,
-  RANT: /.*#Rant\s*/i,
-  RETRO: /.*#Retro\s*/i
+  GIVE: /#[^\s]*/g,
+  GET: /\\\\[^\s]*/gi
 }
+
+const feedbackDb = {}
+
+const lookBack = 600000
 
 /**
  * Dispatches a command sent to OhMyBot
@@ -76,18 +83,21 @@ const COMMAND_PATTERNS = {
  * @return {Promise<boolean | string[]>}
  */
 function handleMessage(text) {
-  const commandType = text.match(COMMAND_PATTERNS.RANT)
-    ? COMMANDS.RANT
-    : text.match(COMMAND_PATTERNS.RETRO)
-      ? COMMANDS.RETRO
-      : text.match(COMMAND_PATTERNS.HELLO) ? COMMANDS.HELLO : null
+  const hashtags = text.match(COMMAND_PATTERNS.GIVE)
+  const requests = text.match(COMMAND_PATTERNS.GET)
+
+  const commandType = hashtags
+    ? COMMANDS.GIVE
+    : requests
+    ? COMMANDS.GET
+    : COMMANDS.HELLO
 
   const args = getArgs(text)
 
-  if (commandType === COMMANDS.RANT)
-    return handleRant(text.replace(COMMAND_PATTERNS.RANT, ''), args)
-  if (commandType === COMMANDS.RETRO)
-    return handleRetro(text.replace(COMMAND_PATTERNS.RETRO, ''), args)
+  if (commandType === COMMANDS.GIVE)
+    return handleFeedback({ text, args, hashtags })
+  if (commandType === COMMANDS.GET)
+    return handleFeedbackRequest({ text, args, requests })
   if (commandType === COMMANDS.HELLO)
     return handleHello(text.replace(COMMAND_PATTERNS.HELLO, ''), args)
 
@@ -122,8 +132,6 @@ function handleHello(text, args) {
   return Promise.resolve('Hello!')
 }
 
-let rantDb = []
-
 /**
  * Adds a rant to the DB
  *
@@ -131,9 +139,18 @@ let rantDb = []
  * @param {*} args Arguments passed in message
  * @return {true}
  */
-function handleRant(text, args) {
-  rantDb.push(text)
+function handleFeedback({ text, hashtags, args }) {
+  hashtags
+    .map(hashtag => hashtag.slice(1))
+    .map(hashtag => hashtag.toLowerCase())
 
+  hashtags.forEach(hashtag => {
+    const textWithoutHashtag = text.replace(hashtag, '')
+    feedbackDb.push({
+      hashtag,
+      time: Date.now(),
+      text: textWithoutHashtag })
+  })
   return Promise.resolve(true)
 }
 
@@ -144,13 +161,26 @@ function handleRant(text, args) {
  * @param {*} args Arguments passed in message
  * @return {string[]}
  */
-function handleRetro(text, args) {
-  const rants = [...rantDb]
-  rantDb = []
+function handleFeedbackRequest({ requests, args }) {
 
   if (args.t === 'no') return Promise.resolve(rants)
 
-  return Promise.all(rants.map(anonymize))
+  return Promise.all(getFeedback({ requests }))
+}
+
+function getFeedback({ requests, lookback = lookback }) {
+  return feedbackDb
+    .filter(({ hashtag }) => requests.indexOf(hashtag) !== -1)
+    .filter(({ time }) => Date.now() - time < lookback)
+    .sort((a, b) => a.time < b.time ? -1 : a.time === b.time ? 0 : 1)
+    .reduce((acc, { hashtag, text }) => {
+      acc[hashtag].push(anonymize(text))
+      return acc
+    },
+    requests.reduce((acc, hashtag) => {
+      acc[hashtag] = []
+      return acc
+    }))
 }
 
 /**

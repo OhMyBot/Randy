@@ -172,7 +172,6 @@ function handleFeedbackRequest({ requests, args }) {
 }
 
 function getFeedback({ requests, lookback }) {
-
   return anonymizeFeedback({ requests, lookback })
     .then(feedback => feedback
       .reduce((acc, { hashtag, text }) => {

@@ -42,6 +42,16 @@ const bot = new builder.UniversalBot(connector, session => {
       return session.send(responses)
     }
 
+    // I'm not sure if this is the pattern we want to take, but it's super late and I want to commit this.
+    if (typeof responses === 'object') {
+      if (responses.hasOwnProperty('command')) {
+        if (responses.command === COMMANDS.LIST) {
+          const listMessage = formatListResponse(responses.list)
+          return session.send(listMessage);
+        }
+      }
+    }
+
     if (typeof responses === 'object') {
       const keys = Object.keys(responses)
       const message = keys.length === 0
@@ -61,15 +71,21 @@ const formatResponse = (thread, hashtag) =>  `#${hashtag}...\n${thread
   .map(r => `* ${r}`)
   .join('\n')}`
 
+const formatListResponse = (list) => `List of #feedback options currently active...\n${list
+  .map(listItem => `* ${listItem}`)
+  .join('\n')}`
+
 const COMMANDS = {
   HELLO: 'HELLO',
   GIVE: 'GIVE',
-  GET: 'GET'
+  GET: 'GET',
+  LIST: 'LIST'
 }
 
 const COMMAND_PATTERNS = {
   GIVE: /#[^\s]+/g,
-  GET: /\\\\[^\s]+/gi
+  GET: /![^\s]+/gi,
+  LIST: /#\?[^\s]*/g
 }
 
 const feedbackDb = []
@@ -85,8 +101,11 @@ const lookback = 600000
 function handleMessage(text) {
   const hashtags = text.match(COMMAND_PATTERNS.GIVE)
   const requests = text.match(COMMAND_PATTERNS.GET)
+  const list = text.match(COMMAND_PATTERNS.LIST)
 
-  const commandType = hashtags
+  const commandType = list
+    ? COMMANDS.LIST
+    : hashtags
     ? COMMANDS.GIVE
     : requests
     ? COMMANDS.GET
@@ -98,6 +117,8 @@ function handleMessage(text) {
     return handleFeedback({ text, args, hashtags })
   if (commandType === COMMANDS.GET)
     return handleFeedbackRequest({ text, args, requests })
+  if (commandType === COMMANDS.LIST)
+    return handleList(text.replace(COMMAND_PATTERNS.LIST, ''), args)
   if (commandType === COMMANDS.HELLO)
     return handleHello(text.replace(COMMAND_PATTERNS.HELLO, ''), args)
 
@@ -129,13 +150,25 @@ function getArgs(text) {
  * @return {string}
  */
 function handleHello(text, args) {
-  return Promise.resolve('Hello! You can provide feedback with hashtags or see feedback with backslashes (#worklifebalance, \\\\\\worklifebalance)')
+  return Promise.resolve('Hello! You can provide feedback with hashtags or see feedback with bangs (#worklifebalance, !worklifebalance)')
+}
+
+/**
+ * Outputs the list of currently active feedback categories 
+ *
+ * @param {string} text Don't care bout this
+ * @param {*} args Arguments passed in message
+ * @return {string}
+ */
+function handleList(text, args) {
+  const list = [...new Set(feedbackDb.map(feedback => feedback.hashtag))].sort()
+  return Promise.resolve({command: COMMANDS.LIST, list: list })
 }
 
 /**
  * Adds a rant to the DB
  *
- * @param {string} text Message text passed to OhMyBot. Should have \\Rant stripped.
+ * @param {string} text Message text passed to OhMyBot. Should have # stripped.
  * @param {*} args Arguments passed in message
  * @return {true}
  */
@@ -167,7 +200,7 @@ function handleFeedbackRequest({ requests, args }) {
 
   return getFeedback({
     lookback,
-    requests: requests.map(req => req.slice(2))
+    requests: requests.map(req => req.slice(1))
   })
 }
 

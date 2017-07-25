@@ -24,6 +24,9 @@ server.post('/api/messages', connector.listen())
 
 // Receive messages from the user and respond by echoing each message back (prefixed with 'You said:')
 const bot = new builder.UniversalBot(connector, session => {
+  const testResult = handleTest(session.message.text)
+  if (testResult) return session.send(testResult)
+
   const result = handleMessage(
     session.message.text,
     session.message.address,
@@ -327,3 +330,17 @@ bot.dialog('/clarify', (session, args, next) => {
     )
   }
 })
+
+/**
+ * For our own testing
+ *
+ * @param {string} text Message text
+ * @return string
+ */
+function handleTest(text) {
+  const testText = {
+    'hey!': ':O'
+  }
+
+  return testText[text]
+}

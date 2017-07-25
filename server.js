@@ -167,7 +167,10 @@ function handleRetro(text, args) {
   if (!hashtag) return Promise.reject(new Error('No hashtags to find :('))
 
   const rants = rantDb
-    .filter(r => hashtag.some(h => r.hashtags.includes(h)))
+    .filter(
+      r =>
+        hashtag.some(h => r.hashtags.includes(h)) && Date.now() - r.date < 60000
+    )
     .map(r => r.text)
 
   if (args.t === 'no') return Promise.resolve(rants)

@@ -48,7 +48,7 @@ const bot = new builder.UniversalBot(connector, session => {
         ? 'Nothing to report!'
         : keys
           .map(hashtag => formatResponse(responses[hashtag], hashtag))
-          .join('\n')
+          .join('\n\n')
 
       return session.send(message)
     }
@@ -57,7 +57,7 @@ const bot = new builder.UniversalBot(connector, session => {
   })
 })
 
-const formatResponse = (thread, hashtag) => `#${hashtag}...\n${thread
+const formatResponse = (thread, hashtag) =>  `#${hashtag}...\n${thread
   .map(r => `* ${r}`)
   .join('\n')}`
 
@@ -68,13 +68,13 @@ const COMMANDS = {
 }
 
 const COMMAND_PATTERNS = {
-  GIVE: /#[^\s]*/g,
-  GET: /\\\\[^\s]*/gi
+  GIVE: /#[^\s]+/g,
+  GET: /\\\\[^\s]+/gi
 }
 
-const feedbackDb = {}
+const feedbackDb = []
 
-const lookBack = 600000
+const lookback = 600000
 
 /**
  * Dispatches a command sent to OhMyBot
@@ -129,7 +129,7 @@ function getArgs(text) {
  * @return {string}
  */
 function handleHello(text, args) {
-  return Promise.resolve('Hello!')
+  return Promise.resolve('Hello! You can provide feedback with hashtags or see feedback with backslashes (#worklifebalance, \\\\worklifebalance)')
 }
 
 /**
@@ -140,12 +140,12 @@ function handleHello(text, args) {
  * @return {true}
  */
 function handleFeedback({ text, hashtags, args }) {
-  hashtags
+  const strippedHashtags = hashtags
     .map(hashtag => hashtag.slice(1))
     .map(hashtag => hashtag.toLowerCase())
 
-  hashtags.forEach(hashtag => {
-    const textWithoutHashtag = text.replace(hashtag, '')
+  strippedHashtags.forEach(hashtag => {
+    const textWithoutHashtag = text.replace('#' + hashtag, '')
     feedbackDb.push({
       hashtag,
       time: Date.now(),
@@ -165,22 +165,39 @@ function handleFeedbackRequest({ requests, args }) {
 
   if (args.t === 'no') return Promise.resolve(rants)
 
-  return Promise.all(getFeedback({ requests }))
+  return getFeedback({
+    lookback,
+    requests: requests.map(req => req.slice(2))
+  })
 }
 
-function getFeedback({ requests, lookback = lookback }) {
+function getFeedback({ requests, lookback }) {
+
+  return anonymizeFeedback({ requests, lookback })
+    .then(feedback => feedback
+      .reduce((acc, { hashtag, text }) => {
+        acc[hashtag].push(text)
+        return acc
+      },
+      requests.reduce((acc, hashtag) => {
+        acc[hashtag] = []
+        return acc
+      }, {})))
+}
+
+function filterAndSortFeedback({ requests, lookback }) {
   return feedbackDb
     .filter(({ hashtag }) => requests.indexOf(hashtag) !== -1)
     .filter(({ time }) => Date.now() - time < lookback)
     .sort((a, b) => a.time < b.time ? -1 : a.time === b.time ? 0 : 1)
-    .reduce((acc, { hashtag, text }) => {
-      acc[hashtag].push(anonymize(text))
-      return acc
-    },
-    requests.reduce((acc, hashtag) => {
-      acc[hashtag] = []
-      return acc
-    }))
+}
+
+function anonymizeFeedback({ requests, lookback }) {
+  return Promise.all(
+    filterAndSortFeedback({ requests, lookback })
+      .map(({ hashtag, text }) => anonymize(text)
+        .then(result => ({ hashtag, text: result })))
+  )
 }
 
 /**
@@ -210,3 +227,4 @@ function anonymize(text) {
     translate(translated, 'es', 'en')
   )
 }
+

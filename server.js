@@ -339,7 +339,15 @@ bot.dialog('/clarify', (session, args, next) => {
  */
 function handleTest(text) {
   const testText = {
-    'hey!': ':O'
+    'Ryan needs to chill. He is too aggressive when asking for deliverables. It is not helping the progress nor the morale. #RyanFY17Q2WHI':
+      'Thanks for your feedback on #RyanFY17Q2WHI!',
+    'What are people thinking about #RyanFY17Q2WHI?': `People said...
+1. Ryan needs to chill. He is too aggressive when asking for deliverables. It is not helping the progress nor the morale
+2. Ryan talks down to me in meetings and ignores my input
+3. It bothers me that Ryan walks around the office without shoes
+4.I feel underappreciated`,
+    'Can you follow up on 1? Is it my tone that is aggressive and needs to change?':
+      "Ok, I'll follow up."
   }
 
   return testText[text]

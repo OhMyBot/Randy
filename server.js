@@ -33,28 +33,32 @@ const bot = new builder.UniversalBot(connector, session => {
 
   session.sendTyping()
 
-  result.then(response => {
-    if (response === true) {
-      return session.send('Thanks bud!')
-    }
+  result
+    .then(response => {
+      if (response === true) {
+        return session.send('Thanks bud!')
+      }
 
-    if (typeof response === 'string') {
-      return session.send(response)
-    }
+      if (typeof response === 'string') {
+        return session.send(response)
+      }
 
-    if (Array.isArray(response)) {
-      const message =
-        response.length === 0
-          ? 'Nothing to report!'
-          : `Here's what some people said...\n${response
-              .map(r => `* ${r}`)
-              .join('\n')}`
+      if (Array.isArray(response)) {
+        const message =
+          response.length === 0
+            ? 'Nothing to report!'
+            : `Here's what some people said...\n${response
+                .map(r => `* ${r}`)
+                .join('\n')}`
 
-      return session.send(message)
-    }
+        return session.send(message)
+      }
 
-    return session.send(':O')
-  })
+      return session.send(':O')
+    })
+    .catch(e => {
+      return session.send(`Whoops, ${e.message}`)
+    })
 })
 
 const COMMANDS = {
@@ -132,7 +136,19 @@ let rantDb = []
  * @return {true}
  */
 function handleRant(text, args) {
-  rantDb.push(text)
+  const hashtagRegex = /#[\w\d\-]*/g
+  const hashtags = text.match(hashtagRegex)
+
+  if (!hashtags) return Promise.reject(new Error('No hashtags to find :('))
+
+  const realText = text.replace(hashtagRegex, '')
+  const dbEntry = {
+    text: realText,
+    hashtags: [...hashtags],
+    date: Date.now()
+  }
+
+  rantDb.push(dbEntry)
 
   return Promise.resolve(true)
 }
@@ -145,8 +161,14 @@ function handleRant(text, args) {
  * @return {string[]}
  */
 function handleRetro(text, args) {
-  const rants = [...rantDb]
-  rantDb = []
+  const hashtagRegex = /#[\w\d\-]*/g
+  const hashtag = text.match(hashtagRegex)
+
+  if (!hashtag) return Promise.reject(new Error('No hashtags to find :('))
+
+  const rants = rantDb
+    .filter(r => hashtag.some(h => r.hashtags.includes(h)))
+    .map(r => r.text)
 
   if (args.t === 'no') return Promise.resolve(rants)
 

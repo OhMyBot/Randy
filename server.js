@@ -129,7 +129,7 @@ function getArgs(text) {
  * @return {string}
  */
 function handleHello(text, args) {
-  return Promise.resolve('Hello! You can provide feedback with hashtags or see feedback with backslashes (#worklifebalance, \\\\worklifebalance)')
+  return Promise.resolve('Hello! You can provide feedback with hashtags or see feedback with backslashes (#worklifebalance, \\\\\\worklifebalance)')
 }
 
 /**

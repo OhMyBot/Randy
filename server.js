@@ -64,9 +64,9 @@ const COMMANDS = {
 }
 
 const COMMAND_PATTERNS = {
-  HELLO: /.*\\\\Hello\s*/g,
-  RANT: /.*\\\\Rant\s*/g,
-  RETRO: /.*\\\\Retro\s*/g
+  HELLO: /.*#Hello\s*/i,
+  RANT: /.*#Rant\s*/i,
+  RETRO: /.*#Retro\s*/i
 }
 
 /**

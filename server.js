@@ -72,6 +72,9 @@ const bot = new builder.UniversalBot(connector, session => {
     })
 })
 
+const model = process.env.MICROSOFT_LUIS_ENDPOINT
+bot.recognizer(new builder.LuisRecognizer(model));
+
 const COMMANDS = {
   HELLO: 'HELLO',
   RANT: 'RANT',

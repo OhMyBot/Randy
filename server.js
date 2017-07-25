@@ -185,7 +185,7 @@ function getFeedback({ requests, lookback }) {
 }
 
 function filterAndSortFeedback({ requests, lookback }) {
-  return feedbackDb
+  return [...feedbackDb]
     .filter(({ hashtag }) => requests.indexOf(hashtag) !== -1)
     .filter(({ time }) => Date.now() - time < lookback)
     .sort((a, b) => a.time < b.time ? -1 : a.time === b.time ? 0 : 1)

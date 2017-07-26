@@ -36,21 +36,25 @@ const bot = new builder.UniversalBot(connector, session => {
 const model = process.env.MICROSOFT_LUIS_ENDPOINT
 bot.recognizer(new builder.LuisRecognizer(model))
 
-bot.dialog('/clarify', (session, args, next) => {
-  if (args) session.dialogData.message = rantDb[args.id]
-  const message = session.dialogData.message
+bot.dialog('/clarify', [
+  (session, args) => {
+    session.dialogData.message = rantDb[args.id]
+    const message = session.dialogData.message
 
-  if (session.message.text) {
-    rantDb[message.id].responses.push(session.message.text)
+    builder.Prompts.text(
+      session,
+      `Hi! Can you please clarify what you meant by "${message.text}?"`
+    )
+  },
+  (session, results) => {
+    const message = session.dialogData.message
+
+    rantDb[message.id].responses.push(results.response)
 
     session.send('Thanks!')
     session.endDialog()
-  } else {
-    session.send(
-      `Hi! Can you please clarify what you meant by "${message.text}?"`
-    )
   }
-})
+])
 
 bot
   .dialog('Rant', session => {

@@ -11,8 +11,8 @@
     "termsOfUseUrl": "https://ohmybot.azurewebsites.net/tos"
   },
   "description": {
-    "short": "Short description of your app",
-    "full": "Full description of your app"
+    "short": "Give feedback to small teams with text anonymization",
+    "full": "OhMyBot is a MS Teams bot that empowers candid team feedback by anonymizing conversations between participants. This allows managers and peers to discuss sensitive topics & drill down to actionable responses while minimizing personal risk to responders."
   },
   "name": {
     "short": "OhMyBot",

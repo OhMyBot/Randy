@@ -27,8 +27,10 @@ let rantDb = []
 // Receive messages from the user and respond by echoing each message back (prefixed with 'You said:')
 const bot = new builder.UniversalBot(connector, session => {
   session.send(
-    "Hi, I'm OhMyBot! You can give me feedback or ask for results with a #hastag."
+    "Hi, I'm OhMyBot! You can give me feedback or ask for results with a #hashtag."
   )
+
+  session.endDialog()
 })
 
 const model = process.env.MICROSOFT_LUIS_ENDPOINT
@@ -59,7 +61,12 @@ bot
     const hashtagRegex = /#[\w\d\-]*/g
     const hashtags = text.match(hashtagRegex)
 
-    if (!hashtags) return session.send('No hashtags to find :(')
+    if (!hashtags) {
+      session.send('No hashtags to find :(')
+      session.endDialog()
+
+      return
+    }
 
     const realText = text.replace(hashtagRegex, '')
     const dbEntry = {
@@ -74,6 +81,7 @@ bot
     rantDb.push(dbEntry)
 
     session.send('Thanks for the feedback!')
+    session.endDialog()
   })
   .triggerAction({ matches: 'Rant' })
 
@@ -119,9 +127,11 @@ bot
                 .join('\n')}`
 
         session.send(message)
+        session.endDialog()
       })
       .catch(e => {
-        return session.send(`Whoops, ${e.message}`)
+        session.send(`Whoops, ${e.message}`)
+        session.endDialog()
       })
   })
   .triggerAction({ matches: 'Retro' })
@@ -148,12 +158,14 @@ bot
     }, 500)
 
     session.send("Thanks! I'll follow up")
+    session.endDialog()
   })
   .triggerAction({ matches: 'Clarification' })
 
 bot
   .dialog('Hello', session => {
     session.send('Hello!')
+    session.endDialog()
   })
   .triggerAction({ matches: 'Hello' })
 

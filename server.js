@@ -26,7 +26,9 @@ let rantDb = []
 
 // Receive messages from the user and respond by echoing each message back (prefixed with 'You said:')
 const bot = new builder.UniversalBot(connector, session => {
-  session.send("Hi! I'm Ryan!")
+  session.send(
+    "Hi, I'm OhMyBot! You can give me feedback or ask for results with a #hastag."
+  )
 })
 
 const model = process.env.MICROSOFT_LUIS_ENDPOINT

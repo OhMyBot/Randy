@@ -22,34 +22,85 @@ const connector = new builder.ChatConnector({
 // Listen for messages from users
 server.post('/api/messages', connector.listen())
 
+let rantDb = []
+
 // Receive messages from the user and respond by echoing each message back (prefixed with 'You said:')
 const bot = new builder.UniversalBot(connector, session => {
-  const testResult = handleTest(session.message.text)
-  if (testResult) return session.send(testResult)
+  session.send("Hi! I'm Ryan!")
+})
 
-  const result = handleMessage(
-    session.message.text,
-    session.message.address,
-    session.userData.lastFeedback
-  )
+const model = process.env.MICROSOFT_LUIS_ENDPOINT
+bot.recognizer(new builder.LuisRecognizer(model))
 
-  if (!result) {
-    return session.send("I don't know what you meant :(")
+bot.dialog('/clarify', (session, args, next) => {
+  if (args) session.dialogData.message = rantDb[args.id]
+  const message = session.dialogData.message
+
+  if (session.message.text) {
+    rantDb[message.id].responses.push(session.message.text)
+
+    session.send('Thanks!')
+    session.endDialog()
+  } else {
+    session.send(
+      `Hi! Can you please clarify what you meant by "${message.text}?"`
+    )
   }
+})
 
-  session.sendTyping()
+bot
+  .dialog('Rant', session => {
+    const text = session.message.text
+    const address = session.message.address
+    const lastFeedback = session.userData.lastFeedback
 
-  result
-    .then(response => {
-      if (response === true) {
-        return session.send('Thanks bud!')
-      }
+    const hashtagRegex = /#[\w\d\-]*/g
+    const hashtags = text.match(hashtagRegex)
 
-      if (typeof response === 'string') {
-        return session.send(response)
-      }
+    if (!hashtags) return session.send('No hashtags to find :(')
 
-      if (Array.isArray(response)) {
+    const realText = text.replace(hashtagRegex, '')
+    const dbEntry = {
+      id: rantDb.length,
+      text: realText,
+      hashtags: [...hashtags],
+      address,
+      date: Date.now(),
+      responses: []
+    }
+
+    rantDb.push(dbEntry)
+
+    session.send('Thanks for the feedback!')
+  })
+  .triggerAction({ matches: 'Rant' })
+
+bot
+  .dialog('Retro', session => {
+    const text = session.message.text
+    const address = session.message.address
+    const lastFeedback = session.userData.lastFeedback
+
+    const hashtagRegex = /#[\w\d\-]*/g
+    const hashtag = text.match(hashtagRegex)
+
+    if (!hashtag) return session.send('No hashtags to find :(')
+
+    session.sendTyping()
+
+    const rants = rantDb.filter(
+      r =>
+        hashtag.some(h => r.hashtags.includes(h)) && Date.now() - r.date < 60000
+    )
+
+    Promise.all(
+      rants.map(r =>
+        anonymize(r.text).then(anonText =>
+          Object.assign({}, r, { text: anonText })
+        )
+      )
+    )
+      .then(response => {
         session.userData.lastFeedback = response
 
         const message =
@@ -61,191 +112,48 @@ const bot = new builder.UniversalBot(connector, session => {
                     `${index + 1}. ${r.text}${!r.responses
                       ? ''
                       : '\n' +
-                        r.responses.map(resp => `  * ${resp}`).join('\n')}`
+                        r.responses.map(resp => `   * ${resp}`).join('\n')}`
                 )
                 .join('\n')}`
 
-        return session.send(message)
-      }
+        session.send(message)
+      })
+      .catch(e => {
+        return session.send(`Whoops, ${e.message}`)
+      })
+  })
+  .triggerAction({ matches: 'Retro' })
 
-      return session.send(':O')
-    })
-    .catch(e => {
-      return session.send(`Whoops, ${e.message}`)
-    })
-})
+bot
+  .dialog('Clarification', session => {
+    const text = session.message.text
+    const lastFeedback = session.userData.lastFeedback
 
-const model = process.env.MICROSOFT_LUIS_ENDPOINT
-bot.recognizer(new builder.LuisRecognizer(model))
+    let message
+    try {
+      const messageNumber = text.match(/#\d+/g)
+      if (!messageNumber) throw new Error()
+      const messageIndex = parseInt(messageNumber[0].replace('#', '')) - 1
+      message = lastFeedback[messageIndex]
 
-const COMMANDS = {
-  HELLO: 'HELLO',
-  RANT: 'RANT',
-  RETRO: 'RETRO',
-  CLARIFY: 'CLARIFY',
-  DUMP: 'DUMP'
-}
+      if (!message || !message.address) throw new Error()
+    } catch (e) {
+      return session.send("That's not a real message >:(")
+    }
 
-const COMMAND_PATTERNS = {
-  HELLO: /.*\\\\Hello\s*/g,
-  RANT: /.*\\\\Rant\s*/g,
-  RETRO: /.*\\\\Retro\s*/g,
-  CLARIFY: /.*\\\\Clarify\s*/g,
-  DUMP: /.*\\\\Dump\s*/g
-}
+    setTimeout(() => {
+      bot.beginDialog(message.address, '*:/clarify', { id: message.id })
+    }, 500)
 
-/**
- * Dispatches a command sent to OhMyBot
- *
- * @param {string} text Message text
- * @param {IAddress} address User's address for future messages
- * @param {*} lastFeedback The last dump of retro data given to the user
- * @return {Promise<boolean | string[]>}
- */
-function handleMessage(text, address, lastFeedback) {
-  const commandType = text.match(COMMAND_PATTERNS.RANT)
-    ? COMMANDS.RANT
-    : text.match(COMMAND_PATTERNS.RETRO)
-      ? COMMANDS.RETRO
-      : text.match(COMMAND_PATTERNS.HELLO)
-        ? COMMANDS.HELLO
-        : text.match(COMMAND_PATTERNS.CLARIFY)
-          ? COMMANDS.CLARIFY
-          : text.match(COMMAND_PATTERNS.DUMP) ? COMMANDS.DUMP : null
+    session.send("Thanks! I'll follow up")
+  })
+  .triggerAction({ matches: 'Clarification' })
 
-  const args = getArgs(text)
-
-  if (commandType === COMMANDS.RANT)
-    return handleRant(
-      text.replace(COMMAND_PATTERNS.RANT, ''),
-      address,
-      lastFeedback,
-      args
-    )
-  if (commandType === COMMANDS.RETRO)
-    return handleRetro(
-      text.replace(COMMAND_PATTERNS.RETRO, ''),
-      address,
-      lastFeedback,
-      args
-    )
-  if (commandType === COMMANDS.HELLO)
-    return handleHello(
-      text.replace(COMMAND_PATTERNS.HELLO, ''),
-      address,
-      lastFeedback,
-      args
-    )
-  if (commandType === COMMANDS.DUMP)
-    return handleDump(
-      text.replace(COMMAND_PATTERNS.DUMP, ''),
-      address,
-      lastFeedback,
-      args
-    )
-  if (commandType === COMMANDS.CLARIFY)
-    return handleClarify(
-      text.replace(COMMAND_PATTERNS.CLARIFY, ''),
-      address,
-      lastFeedback,
-      args
-    )
-
-  return null
-}
-
-/**
- * Extract arguments from text
- *
- * @param {string} text text to extract args from
- * @return {*}
- */
-function getArgs(text) {
-  const argText = text.split(';;')[1] || ''
-
-  return argText.split(',').reduce((acc, str) => {
-    const [key, value] = str.split('=')
-
-    acc[key] = value
-    return acc
-  }, {})
-}
-
-/**
- * Just says hi
- *
- * @param {string} text Don't care bout this
- * @param {IAddress} address User's address for future messages
- * @param {*} lastFeedback The last dump of retro data given to the user
- * @param {*} args Arguments passed in message
- * @return {string}
- */
-function handleHello(text, address, lastFeedback, args) {
-  return Promise.resolve('Hello!')
-}
-
-let rantDb = []
-
-/**
- * Adds a rant to the DB
- *
- * @param {string} text Message text passed to OhMyBot. Should have \\Rant stripped.
- * @param {IAddress} address User's address for future messages
- * @param {*} lastFeedback The last dump of retro data given to the user
- * @param {*} args Arguments passed in message
- * @return {true}
- */
-function handleRant(text, address, lastFeedback, args) {
-  const hashtagRegex = /#[\w\d\-]*/g
-  const hashtags = text.match(hashtagRegex)
-
-  if (!hashtags) return Promise.reject(new Error('No hashtags to find :('))
-
-  const realText = text.replace(hashtagRegex, '')
-  const dbEntry = {
-    id: rantDb.length,
-    text: realText,
-    hashtags: [...hashtags],
-    address,
-    date: Date.now(),
-    responses: []
-  }
-
-  rantDb.push(dbEntry)
-
-  return Promise.resolve(true)
-}
-
-/**
- * Flushes the rant DB and returns all results
- *
- * @param {string} text Message passed to OMB. Doesn't do anything with it
- * @param {IAddress} address User's address for future messages
- * @param {*} lastFeedback The last dump of retro data given to the user
- * @param {*} args Arguments passed in message
- * @return {string[]}
- */
-function handleRetro(text, address, lastFeedback, args) {
-  const hashtagRegex = /#[\w\d\-]*/g
-  const hashtag = text.match(hashtagRegex)
-
-  if (!hashtag) return Promise.reject(new Error('No hashtags to find :('))
-
-  const rants = rantDb.filter(
-    r =>
-      hashtag.some(h => r.hashtags.includes(h)) && Date.now() - r.date < 60000
-  )
-
-  if (args.t === 'no') return Promise.resolve(rants)
-
-  return Promise.all(
-    rants.map(r =>
-      anonymize(r.text).then(anonText =>
-        Object.assign({}, r, { text: anonText })
-      )
-    )
-  )
-}
+bot
+  .dialog('Hello', session => {
+    session.send('Hello!')
+  })
+  .triggerAction({ matches: 'Hello' })
 
 /**
  * Translates a string :O
@@ -270,85 +178,10 @@ function translate(text, from, to) {
  * @return {Promise<string>}
  */
 function anonymize(text) {
-  return translate(text, 'en', 'es').then(translated =>
-    translate(translated, 'es', 'en')
+  const FROM = 'en'
+  const TO = 'es'
+
+  return translate(text, FROM, TO).then(translated =>
+    translate(translated, TO, FROM)
   )
-}
-
-/**
- * Handles when the user wants to clarify a message
- *
- * @param {string} text
- * @param {IAddress} address
- * @param {*} lastFeedback The last dump of retro data given to the user
- * @param {*} args
- * @return {Promise<string>}
- */
-function handleClarify(text, address, lastFeedback, args) {
-  let message
-  try {
-    const messageIndex = parseInt(text.replace(/\s/g, '')) - 1
-    message = lastFeedback[messageIndex]
-
-    if (!message || !message.address) throw new Error()
-  } catch (e) {
-    return Promise.reject(new Error("That's not a real message >:("))
-  }
-
-  setTimeout(() => {
-    bot.beginDialog(message.address, '*:/clarify', { id: message.id })
-  }, 500)
-
-  return Promise.resolve("Thanks! I'll follow up")
-}
-
-/**
- * Dumps the DB
- *
- * @param {string} text
- * @param {IAddress} address
- * @param {*} lastFeedback The last dump of retro data given to the user
- * @param {*} args
- * @return {Promise<string>}
- */
-function handleDump(text, address, lastFeedback, args) {
-  return Promise.resolve(rantDb)
-}
-
-bot.dialog('/clarify', (session, args, next) => {
-  if (args) session.dialogData.message = rantDb[args.id]
-  const message = session.dialogData.message
-
-  if (session.message.text) {
-    rantDb[message.id].responses.push(session.message.text)
-
-    session.send('Thanks!')
-    session.endDialog()
-  } else {
-    session.send(
-      `Hi! Can you please clarify what you meant by ${message.text}?`
-    )
-  }
-})
-
-/**
- * For our own testing
- *
- * @param {string} text Message text
- * @return string
- */
-function handleTest(text) {
-  const testText = {
-    'Ryan needs to chill. He is too aggressive when asking for deliverables. It is not helping the progress nor the morale. #RyanFY17Q2WHI':
-      'Thanks for your feedback on #RyanFY17Q2WHI!',
-    'What are people thinking about #RyanFY17Q2WHI?': `People said...
-1. Ryan needs to chill. He is too aggressive when asking for deliverables. It is not helping the progress nor the morale
-2. Ryan talks down to me in meetings and ignores my input
-3. It bothers me that Ryan walks around the office without shoes
-4.I feel underappreciated`,
-    'Can you follow up on 1? Is it my tone that is aggressive and needs to change?':
-      "Ok, I'll follow up."
-  }
-
-  return testText[text]
 }

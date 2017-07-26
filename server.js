@@ -98,10 +98,7 @@ bot
 
     session.sendTyping()
 
-    const rants = rantDb.filter(
-      r =>
-        hashtag.some(h => r.hashtags.includes(h)) && Date.now() - r.date < 60000
-    )
+    const rants = rantDb.filter(r => hashtag.some(h => r.hashtags.includes(h)))
 
     Promise.all(
       rants.map(r =>
